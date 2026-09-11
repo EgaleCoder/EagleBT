@@ -1,0 +1,41 @@
+## Visual Studio & Build Outputs
+[Bb]in/
+[Oo]bj/
+[Aa]pp[Pp]ackages/
+[Bb]undle[Aa]rtifacts/
+[Pp]ackage[Cc]ache/
+[Ll]og/
+[Ll]ogs/
+
+## Visual Studio cache & temporary files
+.vs/
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+*.userprefs
+*.dbmdl
+*.jsproj.user
+
+## VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+## Test Results & Profiler
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+
+## Windows OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+## Antigravity brain / local temporary logs
+.system_generated/
+*.log
