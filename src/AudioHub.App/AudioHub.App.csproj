@@ -1,0 +1,62 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.22621.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>AudioHub_App</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Platforms>x86;x64;ARM64</Platforms>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-$([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture.ToString().ToLowerInvariant())</RuntimeIdentifier>
+    <UseWinUI>true</UseWinUI>
+    <!--
+      WindowsPackageType=None switches the app to "unpackaged" mode.
+      Benefits:
+        - No MSIX tooling, no GetLatestMSVCVersion task, no C++ workload required.
+        - No package identity needed at runtime (no REGDB_E_CLASSNOTREG).
+        - The compiled .exe runs directly without MSIX deployment or registration.
+        - Windows App Runtime is bootstrapped automatically at startup.
+    -->
+    <WindowsPackageType>None</WindowsPackageType>
+    <SelfContained>false</SelfContained>
+    <!--
+      Disable the MrtCore PRI generation pipeline entirely.
+      EnableCoreMrtTooling=false prevents MrtCore.targets from importing
+      MrtCore.PriGen.targets, which calls ExpandPriContent — a task that loads
+      Microsoft.Build.Packaging.Pri.Tasks.dll. That DLL ships only with the
+      VS UWP/WinUI workload and is absent on this machine (VS 18 Insiders
+      without C++ / UWP workloads installed). Unpackaged WinUI 3 apps do not
+      need PRI resource files for basic operation.
+    -->
+    <EnableCoreMrtTooling>false</EnableCoreMrtTooling>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\AppIcon.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Manifest Include="$(ApplicationManifest)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.1742" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.7.250401001" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AudioHub.Core\AudioHub.Core.csproj" />
+    <ProjectReference Include="..\AudioHub.Infrastructure\AudioHub.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <!-- Publish Properties -->
+  <PropertyGroup>
+    <PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
+    <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
+    <PublishTrimmed Condition="'$(Configuration)' == 'Debug'">False</PublishTrimmed>
+    <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">True</PublishTrimmed>
+  </PropertyGroup>
+
+</Project>

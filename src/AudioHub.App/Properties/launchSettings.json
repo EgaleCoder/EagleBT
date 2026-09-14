@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "AudioHub.App (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "AudioHub.App (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
