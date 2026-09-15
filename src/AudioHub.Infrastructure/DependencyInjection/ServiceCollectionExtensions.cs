@@ -1,4 +1,5 @@
 using AudioHub.Core.Interfaces;
+using AudioHub.Core.Services;
 using AudioHub.Windows.Audio;
 using AudioHub.Windows.Bluetooth;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,9 +21,13 @@ public static class ServiceCollectionExtensions
             builder.SetMinimumLevel(LogLevel.Debug);
         });
 
+        // Register Domain & Routing Services
+        services.AddSingleton<IAudioRoutingService, AudioRoutingService>();
+
         // Register Windows Platform Subsystem Services
         services.AddSingleton<IBluetoothDeviceService, WindowsBluetoothDeviceService>();
         services.AddSingleton<IAudioDeviceService, WindowsAudioDeviceService>();
+        services.AddSingleton<IBluetoothAudioSinkService, WindowsBluetoothAudioSinkService>();
 
         return services;
     }
