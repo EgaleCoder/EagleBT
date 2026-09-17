@@ -33,6 +33,21 @@ public interface IAudioRoutingService
     AudioRoute? ActiveRoute { get; }
 
     /// <summary>
+    /// Gets all currently active audio routes.
+    /// </summary>
+    IReadOnlyCollection<AudioRoute> ActiveRoutes { get; }
+
+    /// <summary>
+    /// Retrieves an active route by its route ID.
+    /// </summary>
+    AudioRoute? GetRoute(string routeId);
+
+    /// <summary>
+    /// Retrieves an active route by the audio source ID.
+    /// </summary>
+    AudioRoute? GetRouteBySourceId(string sourceId);
+
+    /// <summary>
     /// Establishes and activates a route from the specified source to the destination output.
     /// </summary>
     Task<AudioRoute> ConnectRouteAsync(
@@ -41,9 +56,14 @@ public interface IAudioRoutingService
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Deactivates and closes the currently active route.
+    /// Deactivates and closes the specified active route.
     /// </summary>
     Task DisconnectRouteAsync(string routeId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deactivates and closes all currently active routes.
+    /// </summary>
+    Task DisconnectAllRoutesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Updates the volume gain of the active route (0.0f to 1.0f).

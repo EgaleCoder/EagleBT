@@ -47,7 +47,17 @@ public interface IBluetoothAudioSinkService : IDisposable
     Task StopStreamAsync(string deviceId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Terminates all currently active A2DP sink audio streams.
+    /// </summary>
+    Task StopAllStreamsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Returns the current stream state for the specified device.
     /// </summary>
     AudioPlaybackStreamState GetStreamState(string deviceId);
+
+    /// <summary>
+    /// Checks whether the specified device has an active streaming connection.
+    /// </summary>
+    bool IsDeviceStreaming(string deviceId);
 }

@@ -114,11 +114,11 @@ public sealed class AudioRoutingServiceTests
     }
 
     [Fact]
-    public async Task ConnectRouteAsync_ReplacesExistingActiveRouteGracefully()
+    public async Task ConnectRouteAsync_ReplacesExistingRouteForSameSourceGracefully()
     {
         // Arrange
-        var source1 = new AudioSource { Id = "s1", DisplayName = "Phone 1", Type = SourceType.RemoteMedia };
-        var source2 = new AudioSource { Id = "s2", DisplayName = "Phone 2", Type = SourceType.RemoteMedia };
+        var source1 = new AudioSource { Id = "s1", DisplayName = "Phone 1 (Initial)", Type = SourceType.RemoteMedia };
+        var source1Updated = new AudioSource { Id = "s1", DisplayName = "Phone 1 (Updated)", Type = SourceType.RemoteMedia };
         var output = new AudioOutput { Id = "o1", DisplayName = "Mustang GoBoult Torq" };
 
         var firstRoute = await _service.ConnectRouteAsync(source1, output);
@@ -126,12 +126,141 @@ public sealed class AudioRoutingServiceTests
         _service.RouteRemoved += (sender, id) => removedId = id;
 
         // Act
-        var secondRoute = await _service.ConnectRouteAsync(source2, output);
+        var secondRoute = await _service.ConnectRouteAsync(source1Updated, output);
 
         // Assert
         Assert.False(firstRoute.IsActive);
         Assert.Equal(firstRoute.Id, removedId);
-        Assert.Same(secondRoute, _service.ActiveRoute);
-        Assert.Equal("Phone 2", _service.ActiveRoute?.Source.DisplayName);
+        Assert.True(secondRoute.IsActive);
+        Assert.Equal("Phone 1 (Updated)", _service.GetRouteBySourceId("s1")?.Source.DisplayName);
+    }
+
+    [Fact]
+    public async Task ConnectRouteAsync_MultipleDistinctSources_MaintainsAllActiveRoutesConcurrently()
+    {
+        // Arrange
+        var phone = new AudioSource { Id = "phone-1", DisplayName = "Phone", Type = SourceType.RemoteMedia };
+        var tablet = new AudioSource { Id = "tablet-1", DisplayName = "Tablet", Type = SourceType.RemoteMedia };
+        var pc = new AudioSource { Id = "pc-1", DisplayName = "PC App", Type = SourceType.LocalApplication };
+        var earbuds = new AudioOutput { Id = "earbuds-1", DisplayName = "Mustang GoBoult Torq" };
+
+        // Act
+        var route1 = await _service.ConnectRouteAsync(phone, earbuds);
+        var route2 = await _service.ConnectRouteAsync(tablet, earbuds);
+        var route3 = await _service.ConnectRouteAsync(pc, earbuds);
+
+        // Assert: all 3 routes remain active concurrently
+        Assert.Equal(3, _service.ActiveRoutes.Count);
+        Assert.True(route1.IsActive);
+        Assert.True(route2.IsActive);
+        Assert.True(route3.IsActive);
+
+        Assert.NotNull(_service.GetRoute(route1.Id));
+        Assert.NotNull(_service.GetRoute(route2.Id));
+        Assert.NotNull(_service.GetRoute(route3.Id));
+    }
+
+    [Fact]
+    public async Task SetRouteGain_ModifiesSpecifiedRouteIndependently()
+    {
+        // Arrange
+        var source1 = new AudioSource { Id = "s1", DisplayName = "Phone", Type = SourceType.RemoteMedia };
+        var source2 = new AudioSource { Id = "s2", DisplayName = "Tablet", Type = SourceType.RemoteMedia };
+        var output = new AudioOutput { Id = "o1", DisplayName = "Mustang GoBoult Torq" };
+
+        var route1 = await _service.ConnectRouteAsync(source1, output);
+        var route2 = await _service.ConnectRouteAsync(source2, output);
+
+        // Act
+        _service.SetRouteGain(route1.Id, 0.4f);
+        _service.SetRouteGain(route2.Id, 0.9f);
+
+        // Assert
+        Assert.Equal(0.4f, route1.RouteGain);
+        Assert.Equal(0.9f, route2.RouteGain);
+    }
+
+    [Fact]
+    public async Task SetRouteMute_MutesSpecifiedRouteWithoutAffectingOtherRoutes()
+    {
+        // Arrange
+        var source1 = new AudioSource { Id = "s1", DisplayName = "Phone", Type = SourceType.RemoteMedia, IsMuted = false };
+        var source2 = new AudioSource { Id = "s2", DisplayName = "Tablet", Type = SourceType.RemoteMedia, IsMuted = false };
+        var output = new AudioOutput { Id = "o1", DisplayName = "Mustang GoBoult Torq" };
+
+        var route1 = await _service.ConnectRouteAsync(source1, output);
+        var route2 = await _service.ConnectRouteAsync(source2, output);
+
+        // Act
+        _service.SetRouteMute(route1.Id, true);
+
+        // Assert
+        Assert.True(route1.Source.IsMuted);
+        Assert.False(route2.Source.IsMuted);
+    }
+
+    [Fact]
+    public async Task DisconnectRouteAsync_RemovesOnlyTargetRoute_LeavesOtherRoutesActive()
+    {
+        // Arrange
+        var source1 = new AudioSource { Id = "s1", DisplayName = "Phone", Type = SourceType.RemoteMedia };
+        var source2 = new AudioSource { Id = "s2", DisplayName = "Tablet", Type = SourceType.RemoteMedia };
+        var output = new AudioOutput { Id = "o1", DisplayName = "Mustang GoBoult Torq" };
+
+        var route1 = await _service.ConnectRouteAsync(source1, output);
+        var route2 = await _service.ConnectRouteAsync(source2, output);
+
+        // Act
+        await _service.DisconnectRouteAsync(route1.Id);
+
+        // Assert
+        Assert.False(route1.IsActive);
+        Assert.True(route2.IsActive);
+        Assert.Single(_service.ActiveRoutes);
+        Assert.Equal(route2.Id, _service.ActiveRoutes.First().Id);
+    }
+
+    [Fact]
+    public async Task DisconnectAllRoutesAsync_DeactivatesAllActiveRoutesAndFiresEvents()
+    {
+        // Arrange
+        var source1 = new AudioSource { Id = "s1", DisplayName = "Phone", Type = SourceType.RemoteMedia };
+        var source2 = new AudioSource { Id = "s2", DisplayName = "Tablet", Type = SourceType.RemoteMedia };
+        var output = new AudioOutput { Id = "o1", DisplayName = "Mustang GoBoult Torq" };
+
+        var route1 = await _service.ConnectRouteAsync(source1, output);
+        var route2 = await _service.ConnectRouteAsync(source2, output);
+
+        var removedIds = new List<string>();
+        _service.RouteRemoved += (sender, id) => removedIds.Add(id);
+
+        // Act
+        await _service.DisconnectAllRoutesAsync();
+
+        // Assert
+        Assert.Empty(_service.ActiveRoutes);
+        Assert.False(route1.IsActive);
+        Assert.False(route2.IsActive);
+        Assert.Contains(route1.Id, removedIds);
+        Assert.Contains(route2.Id, removedIds);
+    }
+
+    [Fact]
+    public async Task GetRouteBySourceId_ReturnsCorrectRouteForSource()
+    {
+        // Arrange
+        var source = new AudioSource { Id = "target-source", DisplayName = "Phone", Type = SourceType.RemoteMedia };
+        var output = new AudioOutput { Id = "o1", DisplayName = "Mustang GoBoult Torq" };
+
+        var route = await _service.ConnectRouteAsync(source, output);
+
+        // Act
+        var foundRoute = _service.GetRouteBySourceId("target-source");
+        var notFound = _service.GetRouteBySourceId("non-existent");
+
+        // Assert
+        Assert.NotNull(foundRoute);
+        Assert.Same(route, foundRoute);
+        Assert.Null(notFound);
     }
 }

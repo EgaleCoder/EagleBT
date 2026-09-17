@@ -117,9 +117,26 @@ public sealed class WindowsBluetoothAudioSinkService : IBluetoothAudioSinkServic
         return Task.CompletedTask;
     }
 
+    public async Task StopAllStreamsAsync(CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_isDisposed, this);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var deviceIds = _connections.Keys.ToList();
+        foreach (var devId in deviceIds)
+        {
+            await StopStreamAsync(devId, cancellationToken);
+        }
+    }
+
     public AudioPlaybackStreamState GetStreamState(string deviceId)
     {
         return _states.TryGetValue(deviceId, out var state) ? state : AudioPlaybackStreamState.Closed;
+    }
+
+    public bool IsDeviceStreaming(string deviceId)
+    {
+        return _states.TryGetValue(deviceId, out var state) && state == AudioPlaybackStreamState.Streaming;
     }
 
     private void UpdateState(string deviceId, AudioPlaybackStreamState state, string? message)

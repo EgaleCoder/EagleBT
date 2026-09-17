@@ -7,7 +7,7 @@ using Microsoft.UI.Xaml.Controls;
 namespace AudioHub_App;
 
 /// <summary>
-/// Diagnostic console and audio routing console for EagleBT Phase 2.
+/// Diagnostic console and multi-device audio routing hub for EagleBT Phase 3.
 /// </summary>
 public sealed partial class MainPage : Page
 {
@@ -49,8 +49,32 @@ public sealed partial class MainPage : Page
         ViewModel.ToggleMute();
     }
 
+    private void ChannelMuteButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: RouteChannelViewModel channel })
+        {
+            channel.ToggleMute();
+        }
+    }
+
+    private async void StopChannelButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: RouteChannelViewModel channel })
+        {
+            await channel.StopAsync();
+        }
+    }
+
+    private async void StopAllStreamsButton_Click(object sender, RoutedEventArgs e)
+    {
+        await ViewModel.StopAllStreamsAsync();
+    }
+
     public static Visibility BoolToVisibility(bool value) =>
         value ? Visibility.Visible : Visibility.Collapsed;
+
+    public static Visibility InvertBoolToVisibility(bool value) =>
+        value ? Visibility.Collapsed : Visibility.Visible;
 
     public static string FormatVolume(float volume) =>
         $"{volume * 100:0}%";

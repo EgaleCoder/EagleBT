@@ -23,13 +23,14 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     private AudioDevice? _selectedOutputDevice;
     private AudioRoute? _activeRoute;
     private AudioPlaybackStreamState _streamState = AudioPlaybackStreamState.Closed;
-    private string _streamStatusText = "Idle — No active audio stream";
+    private string _streamStatusText = "Idle — No active audio streams";
     private float _routeGain = 1.0f;
     private bool _isRouteMuted;
 
     public ObservableCollection<BluetoothDevice> BluetoothDevices { get; } = new();
     public ObservableCollection<AudioDevice> AudioDevices { get; } = new();
     public ObservableCollection<AudioDevice> RenderEndpoints { get; } = new();
+    public ObservableCollection<RouteChannelViewModel> ActiveChannels { get; } = new();
 
     public string StatusMessage
     {
@@ -43,6 +44,10 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         set => SetField(ref _isScanning, value);
     }
 
+    public bool HasActiveChannels => ActiveChannels.Count > 0;
+
+    public int ActiveStreamsCount => ActiveChannels.Count;
+
     public BluetoothDevice? ActiveStreamDevice
     {
         get => _activeStreamDevice;
@@ -55,7 +60,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
-    public bool HasActiveStreamDevice => _activeStreamDevice != null;
+    public bool HasActiveStreamDevice => _activeStreamDevice != null || HasActiveChannels;
 
     public AudioDevice? SelectedOutputDevice
     {
@@ -75,7 +80,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
-    public bool HasActiveRoute => _activeRoute != null;
+    public bool HasActiveRoute => _activeRoute != null || HasActiveChannels;
 
     public AudioPlaybackStreamState StreamState
     {
@@ -90,7 +95,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
-    public bool IsStreaming => _streamState == AudioPlaybackStreamState.Streaming;
+    public bool IsStreaming => HasActiveChannels || _streamState == AudioPlaybackStreamState.Streaming;
     public bool IsOpening => _streamState == AudioPlaybackStreamState.Opening;
 
     public string StreamStatusText
@@ -229,10 +234,9 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         ArgumentNullException.ThrowIfNull(device);
 
         ActiveStreamDevice = device;
-        StreamStatusText = $"Connecting A2DP Sink to {device.Name}...";
         StatusMessage = $"Initiating stream from {device.Name}...";
 
-        // Setup domain route
+        // Setup domain route for this device
         var targetOutput = SelectedOutputDevice;
         if (targetOutput != null)
         {
@@ -262,25 +266,62 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         {
             StatusMessage = $"Could not open stream for {device.Name}. Ensure device is paired and audio is active.";
         }
+        else
+        {
+            RefreshStreamStatus();
+        }
+    }
+
+    public async Task StopStreamingAsync(string deviceId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
+
+        StatusMessage = $"Stopping stream {deviceId}...";
+        await _bluetoothAudioSinkService.StopStreamAsync(deviceId);
+
+        var route = _audioRoutingService.GetRouteBySourceId(deviceId);
+        if (route != null)
+        {
+            await _audioRoutingService.DisconnectRouteAsync(route.Id);
+        }
+
+        if (ActiveStreamDevice != null && string.Equals(ActiveStreamDevice.Id, deviceId, StringComparison.OrdinalIgnoreCase))
+        {
+            ActiveStreamDevice = null;
+        }
+
+        RefreshStreamStatus();
     }
 
     public async Task StopStreamingAsync()
     {
         if (ActiveStreamDevice != null)
         {
-            StatusMessage = $"Stopping stream from {ActiveStreamDevice.Name}...";
-            await _bluetoothAudioSinkService.StopStreamAsync(ActiveStreamDevice.Id);
+            await StopStreamingAsync(ActiveStreamDevice.Id);
         }
-
-        if (ActiveRoute != null)
+        else if (ActiveChannels.Count > 0)
         {
-            await _audioRoutingService.DisconnectRouteAsync(ActiveRoute.Id);
-            ActiveRoute = null;
+            await StopStreamingAsync(ActiveChannels[0].DeviceId);
         }
+    }
+
+    public async Task StopAllStreamsAsync()
+    {
+        StatusMessage = "Stopping all active audio streams...";
+        await _bluetoothAudioSinkService.StopAllStreamsAsync();
+        await _audioRoutingService.DisconnectAllRoutesAsync();
 
         ActiveStreamDevice = null;
-        StreamStatusText = "Idle — No active audio stream";
-        StatusMessage = "Stream stopped.";
+        ActiveRoute = null;
+        ActiveChannels.Clear();
+        OnPropertyChanged(nameof(HasActiveChannels));
+        OnPropertyChanged(nameof(ActiveStreamsCount));
+        OnPropertyChanged(nameof(HasActiveStreamDevice));
+        OnPropertyChanged(nameof(HasActiveRoute));
+        OnPropertyChanged(nameof(IsStreaming));
+
+        StreamStatusText = "Idle — No active audio streams";
+        StatusMessage = "All streams stopped.";
     }
 
     public void ToggleMute()
@@ -288,21 +329,47 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         IsRouteMuted = !IsRouteMuted;
     }
 
+    public bool IsDeviceStreaming(string deviceId)
+    {
+        return _bluetoothAudioSinkService.IsDeviceStreaming(deviceId);
+    }
+
+    private void RefreshStreamStatus()
+    {
+        int count = ActiveChannels.Count;
+        if (count == 0)
+        {
+            StreamStatusText = "Idle — No active audio streams";
+            StreamState = AudioPlaybackStreamState.Closed;
+        }
+        else if (count == 1)
+        {
+            var ch = ActiveChannels[0];
+            StreamStatusText = $"Streaming: {ch.DisplayName} ➔ {ch.OutputName}";
+            StreamState = AudioPlaybackStreamState.Streaming;
+        }
+        else
+        {
+            var names = string.Join(", ", ActiveChannels.Select(c => c.DisplayName));
+            StreamStatusText = $"Multi-Streaming ({count} active): [{names}] ➔ {SelectedOutputDevice?.Name ?? "Earbuds"}";
+            StreamState = AudioPlaybackStreamState.Streaming;
+        }
+
+        StatusMessage = StreamStatusText;
+    }
+
     private void OnStreamStateChanged(object? sender, AudioPlaybackStreamEventArgs e)
     {
         _dispatcherQueue.TryEnqueue(() =>
         {
-            StreamState = e.State;
-            StreamStatusText = e.State switch
+            var channel = ActiveChannels.FirstOrDefault(c => string.Equals(c.DeviceId, e.DeviceId, StringComparison.OrdinalIgnoreCase));
+            if (channel != null)
             {
-                AudioPlaybackStreamState.Streaming => $"Streaming: {ActiveStreamDevice?.Name ?? e.DeviceId} ➔ {SelectedOutputDevice?.Name ?? "Earbuds"}",
-                AudioPlaybackStreamState.Opening => "Opening A2DP sink connection...",
-                AudioPlaybackStreamState.Failed => $"Stream connection failed: {e.Message ?? "Unknown error"}",
-                AudioPlaybackStreamState.Closed => "Stream closed.",
-                _ => "Idle"
-            };
+                channel.UpdateState(e.State);
+            }
 
-            StatusMessage = StreamStatusText;
+            StreamState = e.State;
+            RefreshStreamStatus();
         });
     }
 
@@ -313,8 +380,32 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             ActiveRoute = e.Route;
             _routeGain = e.Route.RouteGain;
             _isRouteMuted = e.Route.Source.IsMuted;
+
+            var existingChannel = ActiveChannels.FirstOrDefault(c => string.Equals(c.RouteId, e.Route.Id, StringComparison.OrdinalIgnoreCase)
+                                                                 || string.Equals(c.DeviceId, e.Route.Source.Id, StringComparison.OrdinalIgnoreCase));
+            if (existingChannel != null)
+            {
+                existingChannel.UpdateRoute(e.Route);
+            }
+            else
+            {
+                var newChannel = new RouteChannelViewModel(
+                    e.Route,
+                    _bluetoothAudioSinkService.GetStreamState(e.Route.Source.Id),
+                    _audioRoutingService,
+                    StopStreamingAsync);
+
+                ActiveChannels.Add(newChannel);
+            }
+
             OnPropertyChanged(nameof(RouteGain));
             OnPropertyChanged(nameof(IsRouteMuted));
+            OnPropertyChanged(nameof(HasActiveChannels));
+            OnPropertyChanged(nameof(ActiveStreamsCount));
+            OnPropertyChanged(nameof(HasActiveStreamDevice));
+            OnPropertyChanged(nameof(HasActiveRoute));
+            OnPropertyChanged(nameof(IsStreaming));
+            RefreshStreamStatus();
         });
     }
 
@@ -322,10 +413,25 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     {
         _dispatcherQueue.TryEnqueue(() =>
         {
+            var channel = ActiveChannels.FirstOrDefault(c => string.Equals(c.RouteId, routeId, StringComparison.OrdinalIgnoreCase));
+            if (channel != null)
+            {
+                ActiveChannels.Remove(channel);
+            }
+
             if (_activeRoute != null && string.Equals(_activeRoute.Id, routeId, StringComparison.OrdinalIgnoreCase))
             {
-                ActiveRoute = null;
+                ActiveRoute = ActiveChannels.LastOrDefault() != null
+                    ? _audioRoutingService.GetRoute(ActiveChannels.Last().RouteId)
+                    : null;
             }
+
+            OnPropertyChanged(nameof(HasActiveChannels));
+            OnPropertyChanged(nameof(ActiveStreamsCount));
+            OnPropertyChanged(nameof(HasActiveStreamDevice));
+            OnPropertyChanged(nameof(HasActiveRoute));
+            OnPropertyChanged(nameof(IsStreaming));
+            RefreshStreamStatus();
         });
     }
 
@@ -364,9 +470,10 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
                 BluetoothDevices.Remove(existing);
             }
 
-            if (ActiveStreamDevice != null && string.Equals(ActiveStreamDevice.Id, deviceId, StringComparison.OrdinalIgnoreCase))
+            var channel = ActiveChannels.FirstOrDefault(c => string.Equals(c.DeviceId, deviceId, StringComparison.OrdinalIgnoreCase));
+            if (channel != null)
             {
-                _ = StopStreamingAsync();
+                _ = StopStreamingAsync(deviceId);
             }
         });
     }
