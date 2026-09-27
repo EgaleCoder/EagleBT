@@ -28,6 +28,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IBluetoothDeviceService, WindowsBluetoothDeviceService>();
         services.AddSingleton<IAudioDeviceService, WindowsAudioDeviceService>();
         services.AddSingleton<IBluetoothAudioSinkService, WindowsBluetoothAudioSinkService>();
+        services.AddSingleton<IAudioMixerService, SoftwareAudioMixerService>();
 
         return services;
     }
