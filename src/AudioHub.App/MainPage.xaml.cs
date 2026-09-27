@@ -7,7 +7,7 @@ using Microsoft.UI.Xaml.Controls;
 namespace AudioHub_App;
 
 /// <summary>
-/// Diagnostic console and multi-device audio routing hub for EagleBT Phase 3.
+/// Diagnostic console and real-time audio mixer hub for EagleBT Phase 4.
 /// </summary>
 public sealed partial class MainPage : Page
 {
@@ -49,11 +49,24 @@ public sealed partial class MainPage : Page
         ViewModel.ToggleMute();
     }
 
+    private void MasterMuteButton_Click(object sender, RoutedEventArgs e)
+    {
+        ViewModel.ToggleMasterMute();
+    }
+
     private void ChannelMuteButton_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button { Tag: RouteChannelViewModel channel })
         {
             channel.ToggleMute();
+        }
+    }
+
+    private void ChannelSoloButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: RouteChannelViewModel channel })
+        {
+            channel.ToggleSolo();
         }
     }
 

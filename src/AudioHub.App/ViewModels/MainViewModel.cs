@@ -13,6 +13,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     private readonly IAudioDeviceService _audioDeviceService;
     private readonly IBluetoothAudioSinkService _bluetoothAudioSinkService;
     private readonly IAudioRoutingService _audioRoutingService;
+    private readonly IAudioMixerService _audioMixerService;
     private readonly DispatcherQueue _dispatcherQueue;
 
     private string _statusMessage = "Ready";
@@ -26,6 +27,14 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     private string _streamStatusText = "Idle — No active audio streams";
     private float _routeGain = 1.0f;
     private bool _isRouteMuted;
+
+    // Master Mixer properties
+    private float _masterVolume = 1.0f;
+    private bool _isMasterMuted;
+    private bool _isLimiterEnabled = true;
+    private float _masterPeakLeft;
+    private float _masterPeakRight;
+    private bool _isMasterClipping;
 
     public ObservableCollection<BluetoothDevice> BluetoothDevices { get; } = new();
     public ObservableCollection<AudioDevice> AudioDevices { get; } = new();
@@ -112,6 +121,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             if (SetField(ref _routeGain, value) && _activeRoute != null)
             {
                 _audioRoutingService.SetRouteGain(_activeRoute.Id, value);
+                _audioMixerService.SetChannelGain(_activeRoute.Id, value);
             }
         }
     }
@@ -124,9 +134,77 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             if (SetField(ref _isRouteMuted, value) && _activeRoute != null)
             {
                 _audioRoutingService.SetRouteMute(_activeRoute.Id, value);
+                _audioMixerService.SetChannelMute(_activeRoute.Id, value);
             }
         }
     }
+
+    #region Master Mixer Controls
+
+    public float MasterVolume
+    {
+        get => _masterVolume;
+        set
+        {
+            if (SetField(ref _masterVolume, Math.Clamp(value, 0f, 1f)))
+            {
+                _audioMixerService.SetMasterGain(_masterVolume);
+                OnPropertyChanged(nameof(FormattedMasterVolume));
+            }
+        }
+    }
+
+    public string FormattedMasterVolume => $"{_masterVolume * 100:0}%";
+
+    public bool IsMasterMuted
+    {
+        get => _isMasterMuted;
+        set
+        {
+            if (SetField(ref _isMasterMuted, value))
+            {
+                _audioMixerService.SetMasterMute(_isMasterMuted);
+                OnPropertyChanged(nameof(MasterMuteText));
+            }
+        }
+    }
+
+    public string MasterMuteText => _isMasterMuted ? "Unmute Master" : "Mute Master";
+
+    public bool IsLimiterEnabled
+    {
+        get => _isLimiterEnabled;
+        set
+        {
+            if (SetField(ref _isLimiterEnabled, value))
+            {
+                _audioMixerService.SetLimiterEnabled(_isLimiterEnabled);
+                OnPropertyChanged(nameof(LimiterStatusText));
+            }
+        }
+    }
+
+    public string LimiterStatusText => _isLimiterEnabled ? "Limiter: Active" : "Limiter: Bypassed";
+
+    public float MasterPeakLeft
+    {
+        get => _masterPeakLeft;
+        private set => SetField(ref _masterPeakLeft, Math.Clamp(value, 0f, 1f));
+    }
+
+    public float MasterPeakRight
+    {
+        get => _masterPeakRight;
+        private set => SetField(ref _masterPeakRight, Math.Clamp(value, 0f, 1f));
+    }
+
+    public bool IsMasterClipping
+    {
+        get => _isMasterClipping;
+        private set => SetField(ref _isMasterClipping, value);
+    }
+
+    #endregion
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -134,12 +212,14 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         IBluetoothDeviceService bluetoothDeviceService,
         IAudioDeviceService audioDeviceService,
         IBluetoothAudioSinkService bluetoothAudioSinkService,
-        IAudioRoutingService audioRoutingService)
+        IAudioRoutingService audioRoutingService,
+        IAudioMixerService audioMixerService)
     {
         _bluetoothDeviceService = bluetoothDeviceService ?? throw new ArgumentNullException(nameof(bluetoothDeviceService));
         _audioDeviceService = audioDeviceService ?? throw new ArgumentNullException(nameof(audioDeviceService));
         _bluetoothAudioSinkService = bluetoothAudioSinkService ?? throw new ArgumentNullException(nameof(bluetoothAudioSinkService));
         _audioRoutingService = audioRoutingService ?? throw new ArgumentNullException(nameof(audioRoutingService));
+        _audioMixerService = audioMixerService ?? throw new ArgumentNullException(nameof(audioMixerService));
         _dispatcherQueue = DispatcherQueue.GetForCurrentThread() ?? throw new InvalidOperationException("DispatcherQueue not available.");
 
         // Subscribe to Bluetooth device service events
@@ -153,10 +233,11 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         _audioDeviceService.DeviceStateChanged += OnAudioDeviceStateChanged;
         _audioDeviceService.DefaultDeviceChanged += OnDefaultAudioDeviceChanged;
 
-        // Subscribe to Stream & Route events
+        // Subscribe to Stream, Route, & Mixer events
         _bluetoothAudioSinkService.StreamStateChanged += OnStreamStateChanged;
         _audioRoutingService.RouteUpdated += OnRouteUpdated;
         _audioRoutingService.RouteRemoved += OnRouteRemoved;
+        _audioMixerService.LevelsUpdated += OnMixerLevelsUpdated;
     }
 
     public async Task InitializeAsync()
@@ -282,6 +363,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         var route = _audioRoutingService.GetRouteBySourceId(deviceId);
         if (route != null)
         {
+            _audioMixerService.RemoveChannel(route.Id);
             await _audioRoutingService.DisconnectRouteAsync(route.Id);
         }
 
@@ -310,6 +392,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         StatusMessage = "Stopping all active audio streams...";
         await _bluetoothAudioSinkService.StopAllStreamsAsync();
         await _audioRoutingService.DisconnectAllRoutesAsync();
+        _audioMixerService.Reset();
 
         ActiveStreamDevice = null;
         ActiveRoute = null;
@@ -327,6 +410,16 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     public void ToggleMute()
     {
         IsRouteMuted = !IsRouteMuted;
+    }
+
+    public void ToggleMasterMute()
+    {
+        IsMasterMuted = !IsMasterMuted;
+    }
+
+    public void ToggleLimiter()
+    {
+        IsLimiterEnabled = !IsLimiterEnabled;
     }
 
     public bool IsDeviceStreaming(string deviceId)
@@ -351,11 +444,29 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         else
         {
             var names = string.Join(", ", ActiveChannels.Select(c => c.DisplayName));
-            StreamStatusText = $"Multi-Streaming ({count} active): [{names}] ➔ {SelectedOutputDevice?.Name ?? "Earbuds"}";
+            StreamStatusText = $"Real-Time Mixing ({count} streams): [{names}] ➔ {SelectedOutputDevice?.Name ?? "Earbuds"}";
             StreamState = AudioPlaybackStreamState.Streaming;
         }
 
         StatusMessage = StreamStatusText;
+    }
+
+    private void OnMixerLevelsUpdated(object? sender, MixerLevelsEventArgs e)
+    {
+        _dispatcherQueue.TryEnqueue(() =>
+        {
+            foreach (var channel in ActiveChannels)
+            {
+                if (e.ChannelPeaks.TryGetValue(channel.RouteId, out var peaks))
+                {
+                    channel.UpdateLevels(peaks.PeakLeft, peaks.PeakRight);
+                }
+            }
+
+            MasterPeakLeft = e.MasterPeak.PeakLeft;
+            MasterPeakRight = e.MasterPeak.PeakRight;
+            IsMasterClipping = e.IsMasterClipping;
+        });
     }
 
     private void OnStreamStateChanged(object? sender, AudioPlaybackStreamEventArgs e)
@@ -393,6 +504,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
                     e.Route,
                     _bluetoothAudioSinkService.GetStreamState(e.Route.Source.Id),
                     _audioRoutingService,
+                    _audioMixerService,
                     StopStreamingAsync);
 
                 ActiveChannels.Add(newChannel);
@@ -413,6 +525,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     {
         _dispatcherQueue.TryEnqueue(() =>
         {
+            _audioMixerService.RemoveChannel(routeId);
+
             var channel = ActiveChannels.FirstOrDefault(c => string.Equals(c.RouteId, routeId, StringComparison.OrdinalIgnoreCase));
             if (channel != null)
             {
@@ -567,5 +681,6 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         _bluetoothAudioSinkService.StreamStateChanged -= OnStreamStateChanged;
         _audioRoutingService.RouteUpdated -= OnRouteUpdated;
         _audioRoutingService.RouteRemoved -= OnRouteRemoved;
+        _audioMixerService.LevelsUpdated -= OnMixerLevelsUpdated;
     }
 }
