@@ -11,7 +11,7 @@
     Loaded="Page_Loaded"
     mc:Ignorable="d">
 
-    <Grid Padding="24" RowSpacing="16">
+    <Grid Padding="24" RowSpacing="14">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -19,33 +19,62 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- Header -->
+        <!-- Header with View Navigation Tabs -->
         <Grid Grid.Row="0">
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <StackPanel Orientation="Vertical" Spacing="4">
+            <!-- App Title & Phase Subtitle -->
+            <StackPanel Grid.Column="0" Orientation="Vertical" Spacing="2">
                 <TextBlock Text="EagleBT Audio Hub" Style="{ThemeResource TitleTextBlockStyle}" FontWeight="SemiBold" />
-                <TextBlock Text="Phase 4: Real-Time Audio Mixer &amp; Multi-Stream Router" Style="{ThemeResource BodyTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <TextBlock Text="Phase 5: Interactive Cross-Point Matrix &amp; Full Audio Hub Routing UI" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
             </StackPanel>
 
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <!-- Navigation Segmented Tabs -->
+            <Border Grid.Column="1" HorizontalAlignment="Center" Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="8" Padding="4">
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                    <Button Click="MixerViewNavButton_Click" Padding="12,6">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon Glyph="&#xE768;" FontSize="13" Foreground="{ThemeResource AccentFillColorDefaultBrush}" />
+                            <TextBlock Text="Mixer &amp; Channels" FontSize="12" FontWeight="SemiBold" />
+                        </StackPanel>
+                    </Button>
+                    <Button Click="MatrixViewNavButton_Click" Padding="12,6">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon Glyph="&#xE710;" FontSize="13" Foreground="{ThemeResource AccentFillColorDefaultBrush}" />
+                            <TextBlock Text="Cross-Point Matrix" FontSize="12" FontWeight="SemiBold" />
+                            <Border Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="10" Padding="5,1">
+                                <TextBlock Text="{x:Bind ViewModel.TotalActiveCrossPoints, Mode=OneWay}" FontSize="10" FontWeight="Bold" Foreground="White" />
+                            </Border>
+                        </StackPanel>
+                    </Button>
+                    <Button Click="DevicesViewNavButton_Click" Padding="12,6">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon Glyph="&#xE702;" FontSize="13" Foreground="{ThemeResource AccentFillColorDefaultBrush}" />
+                            <TextBlock Text="Hardware &amp; Devices" FontSize="12" FontWeight="SemiBold" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Border>
+
+            <!-- Header Action Controls -->
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                 <Button Content="Refresh Audio" Click="RefreshAudioButton_Click" />
             </StackPanel>
         </Grid>
 
-        <!-- Real-Time Audio Mixer & Multi-Stream Controller Card -->
-        <Border Grid.Row="1" Background="{ThemeResource LayerFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
-            <Grid RowSpacing="14">
+        <!-- Master Bus & Stream Status Bar (Shared across all tabs) -->
+        <Border Grid.Row="1" Background="{ThemeResource LayerFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="14,10">
+            <Grid RowSpacing="10">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <!-- Status & Global Controls Bar -->
+                <!-- Status & Output Routing Bar -->
                 <Grid Grid.Row="0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
@@ -55,12 +84,12 @@
                     </Grid.ColumnDefinitions>
 
                     <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                        <FontIcon Glyph="&#xE8D6;" FontSize="22" Foreground="{ThemeResource AccentFillColorDefaultBrush}" />
-                        <TextBlock Text="Real-Time Mixer:" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        <FontIcon Glyph="&#xE8D6;" FontSize="20" Foreground="{ThemeResource AccentFillColorDefaultBrush}" />
+                        <TextBlock Text="Routing Status:" FontWeight="SemiBold" VerticalAlignment="Center" />
                         <TextBlock Text="{x:Bind ViewModel.StreamStatusText, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
                     </StackPanel>
 
-                    <!-- Stop All Button (Visible when multi-streams active) -->
+                    <!-- Stop All Button -->
                     <Button Grid.Column="2" Click="StopAllStreamsButton_Click" Margin="0,0,16,0"
                             Visibility="{x:Bind local:MainPage.BoolToVisibility(ViewModel.HasActiveChannels), Mode=OneWay}"
                             VerticalAlignment="Center">
@@ -72,7 +101,7 @@
 
                     <!-- Target Output Endpoint Selector -->
                     <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <TextBlock Text="Output:" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <TextBlock Text="Target Output:" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         <ComboBox ItemsSource="{x:Bind ViewModel.RenderEndpoints, Mode=OneWay}"
                                   SelectedItem="{x:Bind ViewModel.SelectedOutputDevice, Mode=TwoWay}"
                                   MinWidth="220">
@@ -88,10 +117,10 @@
                     </StackPanel>
                 </Grid>
 
-                <!-- Master Output Controls Bar -->
+                <!-- Master Bus Audio Fader & Peak Meter Controls -->
                 <Border Grid.Row="1" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                        BorderThickness="1" CornerRadius="6" Padding="14,10">
+                        BorderThickness="1" CornerRadius="6" Padding="14,8">
                     <Grid ColumnSpacing="16">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
@@ -104,7 +133,7 @@
 
                         <!-- Master Label -->
                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                            <FontIcon Glyph="&#xE767;" FontSize="18" Foreground="{ThemeResource AccentFillColorDefaultBrush}" />
+                            <FontIcon Glyph="&#xE767;" FontSize="16" Foreground="{ThemeResource AccentFillColorDefaultBrush}" />
                             <TextBlock Text="Master Bus" FontWeight="Bold" FontSize="13" VerticalAlignment="Center" />
                         </StackPanel>
 
@@ -149,207 +178,457 @@
                         </Button>
                     </Grid>
                 </Border>
+            </Grid>
+        </Border>
+
+        <!-- Dynamic Main Content: View 0 (Mixer), View 1 (Matrix), View 2 (Hardware) -->
+        <Grid Grid.Row="2">
+
+            <!-- ================= VIEW 0: MIXER & CHANNELS ================= -->
+            <Grid Visibility="{x:Bind local:MainPage.BoolToVisibility(ViewModel.IsMixerViewSelected), Mode=OneWay}" RowSpacing="12">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
 
                 <!-- Active Channels Stream Strips -->
-                <StackPanel Grid.Row="2" Spacing="10">
-                    <!-- Placeholder when no active streams -->
-                    <TextBlock Text="No active audio streams. Click 'Stream Audio' on any paired Bluetooth device below to route into the mixer."
-                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                               FontStyle="Italic"
-                               Visibility="{x:Bind local:MainPage.InvertBoolToVisibility(ViewModel.HasActiveChannels), Mode=OneWay}"
-                               Margin="4,4,0,4" />
+                <Border Grid.Row="0" Background="{ThemeResource LayerFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
+                    <Grid RowSpacing="10">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
 
-                    <!-- Channel Strips for Concurrent Streams -->
-                    <ItemsControl ItemsSource="{x:Bind ViewModel.ActiveChannels, Mode=OneWay}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="viewmodels:RouteChannelViewModel">
-                                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                        BorderThickness="1"
-                                        CornerRadius="6"
-                                        Padding="12,8"
-                                        Margin="0,0,0,6">
-                                    <Grid ColumnSpacing="12">
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="Active Audio Channel Strips" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                            <Border Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
+                                <TextBlock Text="{x:Bind ViewModel.ActiveStreamsCount, Mode=OneWay}" Foreground="White" FontSize="11" FontWeight="Bold" />
+                            </Border>
+                        </StackPanel>
+
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <StackPanel Spacing="10">
+                                <!-- Placeholder when no active streams -->
+                                <TextBlock Text="No active audio channels. Switch to the 'Cross-Point Matrix' tab or click 'Stream Audio' on any paired device below to start routing."
+                                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                           FontStyle="Italic"
+                                           Visibility="{x:Bind local:MainPage.InvertBoolToVisibility(ViewModel.HasActiveChannels), Mode=OneWay}"
+                                           Margin="4,4,0,4" />
+
+                                <!-- Channel Strips for Concurrent Streams -->
+                                <ItemsControl ItemsSource="{x:Bind ViewModel.ActiveChannels, Mode=OneWay}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="viewmodels:RouteChannelViewModel">
+                                            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="6"
+                                                    Padding="12,8"
+                                                    Margin="0,0,0,6">
+                                                <Grid ColumnSpacing="12">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="150" />
+                                                        <ColumnDefinition Width="70" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <!-- Stream Icon & State -->
+                                                    <FontIcon Grid.Column="0" Glyph="&#xE768;" FontSize="16" Foreground="{ThemeResource AccentFillColorDefaultBrush}" VerticalAlignment="Center" />
+
+                                                    <!-- Device & Route Info -->
+                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                        <TextBlock Text="{x:Bind DisplayName}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Text="{x:Bind OutputName}" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextTrimming="CharacterEllipsis" />
+                                                    </StackPanel>
+
+                                                    <!-- Channel L/R Peak VU Meter -->
+                                                    <StackPanel Grid.Column="2" Orientation="Vertical" Spacing="2" VerticalAlignment="Center">
+                                                        <Grid>
+                                                            <TextBlock Text="L" FontSize="8" Foreground="{ThemeResource TextFillColorTertiaryBrush}" HorizontalAlignment="Left" VerticalAlignment="Center" />
+                                                            <ProgressBar Minimum="0" Maximum="1" Value="{x:Bind PeakLeft, Mode=OneWay}" Margin="10,0,0,0" Height="4" />
+                                                        </Grid>
+                                                        <Grid>
+                                                            <TextBlock Text="R" FontSize="8" Foreground="{ThemeResource TextFillColorTertiaryBrush}" HorizontalAlignment="Left" VerticalAlignment="Center" />
+                                                            <ProgressBar Minimum="0" Maximum="1" Value="{x:Bind PeakRight, Mode=OneWay}" Margin="10,0,0,0" Height="4" />
+                                                        </Grid>
+                                                    </StackPanel>
+
+                                                    <!-- Independent Channel Volume Slider -->
+                                                    <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                        <FontIcon Glyph="&#xE767;" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                        <Slider Minimum="0" Maximum="1" StepFrequency="0.05" Value="{x:Bind RouteGain, Mode=TwoWay}" Width="110" VerticalAlignment="Center" />
+                                                        <TextBlock Text="{x:Bind FormattedVolume, Mode=OneWay}" Width="36" FontSize="11" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                    </StackPanel>
+
+                                                    <!-- Stereo Pan Slider (-1 to +1) -->
+                                                    <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                        <TextBlock Text="Pan" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                                                        <Slider Minimum="-1" Maximum="1" StepFrequency="0.05" Value="{x:Bind Pan, Mode=TwoWay}" Width="85" VerticalAlignment="Center" />
+                                                        <TextBlock Text="{x:Bind FormattedPan, Mode=OneWay}" Width="42" FontSize="11" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                    </StackPanel>
+
+                                                    <!-- Solo Button -->
+                                                    <Button Grid.Column="5" Click="ChannelSoloButton_Click" Tag="{x:Bind}" VerticalAlignment="Center" Padding="8,4">
+                                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                                            <FontIcon Glyph="&#xE7EC;" FontSize="12" />
+                                                            <TextBlock Text="{x:Bind SoloButtonText, Mode=OneWay}" FontSize="11" />
+                                                        </StackPanel>
+                                                    </Button>
+
+                                                    <!-- Mute Button -->
+                                                    <Button Grid.Column="6" Click="ChannelMuteButton_Click" Tag="{x:Bind}" VerticalAlignment="Center" Padding="8,4">
+                                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                                            <FontIcon Glyph="&#xE74F;" FontSize="12" />
+                                                            <TextBlock Text="{x:Bind MuteButtonText, Mode=OneWay}" FontSize="11" />
+                                                        </StackPanel>
+                                                    </Button>
+
+                                                    <!-- Spacer in Column 7 -->
+
+                                                    <!-- Stop Channel Stream Button -->
+                                                    <Button Grid.Column="8" Click="StopChannelButton_Click" Tag="{x:Bind}" Style="{ThemeResource AccentButtonStyle}" VerticalAlignment="Center" Padding="8,4">
+                                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                                            <FontIcon Glyph="&#xE71A;" FontSize="12" />
+                                                            <TextBlock Text="Stop Stream" FontSize="11" />
+                                                        </StackPanel>
+                                                    </Button>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+
+                <!-- Quick Stream Launcher (Paired Bluetooth Sources) -->
+                <Border Grid.Row="1" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="14,10">
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <FontIcon Glyph="&#xE702;" FontSize="16" Foreground="{ThemeResource AccentFillColorDefaultBrush}" />
+                            <TextBlock Text="Available Bluetooth Sources:" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center" />
+                        </StackPanel>
+
+                        <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                            <ItemsControl ItemsSource="{x:Bind ViewModel.BluetoothDevices, Mode=OneWay}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" Spacing="8" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="models:BluetoothDevice">
+                                        <Button Click="StreamButton_Click" Tag="{x:Bind}" Padding="10,6">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <FontIcon Glyph="&#xE768;" FontSize="12" />
+                                                <TextBlock Text="{x:Bind Name}" FontSize="11" FontWeight="SemiBold" />
+                                                <TextBlock Text="Stream" FontSize="10" Foreground="{ThemeResource AccentFillColorDefaultBrush}" />
+                                            </StackPanel>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- ================= VIEW 1: CROSS-POINT ROUTING MATRIX ================= -->
+            <Grid Visibility="{x:Bind local:MainPage.BoolToVisibility(ViewModel.IsMatrixViewSelected), Mode=OneWay}" RowSpacing="12">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!-- Matrix Header & Stats Bar -->
+                <Border Grid.Row="0" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="6" Padding="14,10">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Orientation="Vertical" Spacing="2">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon Glyph="&#xE710;" FontSize="16" Foreground="{ThemeResource AccentFillColorDefaultBrush}" VerticalAlignment="Center" />
+                                <TextBlock Text="Interactive Cross-Point Audio Matrix" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" />
+                                <Border Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                                    <TextBlock Text="2D Cross-Point Router" FontSize="10" FontWeight="Bold" Foreground="White" />
+                                </Border>
+                            </StackPanel>
+                            <TextBlock Text="Click any matrix cross-point node to dynamically establish, disconnect, or switch audio routes between sources and output endpoints."
+                                       FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                            <!-- Active Cross-Points Pill -->
+                            <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="6" Padding="10,4">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="Active Routes:" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    <TextBlock Text="{x:Bind ViewModel.TotalActiveCrossPoints, Mode=OneWay}" FontSize="12" FontWeight="Bold" Foreground="{ThemeResource AccentFillColorDefaultBrush}" />
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Sources Pill -->
+                            <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="6" Padding="10,4">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="Sources:" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    <TextBlock Text="{x:Bind ViewModel.MatrixRows.Count, Mode=OneWay}" FontSize="12" FontWeight="Bold" />
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Destinations Pill -->
+                            <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="6" Padding="10,4">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="Endpoints:" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    <TextBlock Text="{x:Bind ViewModel.MatrixEndpoints.Count, Mode=OneWay}" FontSize="12" FontWeight="Bold" />
+                                </StackPanel>
+                            </Border>
+
+                            <Button Content="Refresh Matrix" Click="RefreshMatrixButton_Click" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Scrollable Matrix Grid -->
+                <Border Grid.Row="1" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                        <StackPanel Orientation="Vertical">
+                            <!-- Matrix Column Headers (Destination Audio Outputs) -->
+                            <Grid Margin="0,0,0,8" Padding="8,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="260" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0" Text="AUDIO SOURCE (INPUT)" FontWeight="Bold" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+
+                                <ItemsControl Grid.Column="1" ItemsSource="{x:Bind ViewModel.MatrixEndpoints, Mode=OneWay}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Orientation="Horizontal" Spacing="8" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="models:AudioDevice">
+                                            <Border Width="160" Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="4" Padding="8,6">
+                                                <Grid ColumnSpacing="6">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="{x:Bind Name}" FontSize="11" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                                    <Border Grid.Column="1" Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="3" Padding="4,1"
+                                                            Visibility="{x:Bind local:MainPage.BoolToVisibility(IsBluetoothEndpoint), Mode=OneTime}">
+                                                        <TextBlock Text="BT" FontSize="8" FontWeight="Bold" Foreground="White" />
+                                                    </Border>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </Grid>
+
+                            <!-- Matrix Rows (Sources and Cross-Point Cells) -->
+                            <ItemsControl ItemsSource="{x:Bind ViewModel.MatrixRows, Mode=OneWay}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="viewmodels:MatrixRowViewModel">
+                                        <Border Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="6"
+                                                Padding="8,8"
+                                                Margin="0,0,0,6">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="260" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <!-- Source Cell Info -->
+                                                <Grid Grid.Column="0" Margin="0,0,12,0">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <FontIcon Grid.Column="0" Glyph="{x:Bind SourceGlyph}" FontSize="18"
+                                                              Foreground="{ThemeResource AccentFillColorDefaultBrush}" VerticalAlignment="Center" Margin="0,0,10,0" />
+
+                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                        <TextBlock Text="{x:Bind SourceName}" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Text="{x:Bind SourceId}" FontSize="10" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextTrimming="CharacterEllipsis" />
+                                                    </StackPanel>
+
+                                                    <Border Grid.Column="2" CornerRadius="4" Padding="5,2" VerticalAlignment="Center"
+                                                            Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                                                        <TextBlock Text="{x:Bind StatusText, Mode=OneWay}" FontSize="9" FontWeight="Medium" />
+                                                    </Border>
+                                                </Grid>
+
+                                                <!-- Cross-Point Routing Cells -->
+                                                <ItemsControl Grid.Column="1" ItemsSource="{x:Bind Cells, Mode=OneWay}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <StackPanel Orientation="Horizontal" Spacing="8" />
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate x:DataType="viewmodels:MatrixCellViewModel">
+                                                            <Button Width="160" Height="40" Padding="8,4"
+                                                                    Click="MatrixCellButton_Click" Tag="{x:Bind}"
+                                                                    ToolTipService.ToolTip="{x:Bind CrossPointToolTip, Mode=OneWay}"
+                                                                    HorizontalContentAlignment="Stretch"
+                                                                    VerticalContentAlignment="Stretch">
+                                                                <Grid ColumnSpacing="6">
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="Auto" />
+                                                                        <ColumnDefinition Width="*" />
+                                                                        <ColumnDefinition Width="Auto" />
+                                                                    </Grid.ColumnDefinitions>
+
+                                                                    <FontIcon Grid.Column="0" Glyph="{x:Bind ConnectionGlyph, Mode=OneWay}"
+                                                                              FontSize="13"
+                                                                              Foreground="{ThemeResource AccentFillColorDefaultBrush}"
+                                                                              VerticalAlignment="Center" />
+
+                                                                    <TextBlock Grid.Column="1" Text="{x:Bind OutputName}"
+                                                                               FontSize="11" TextTrimming="CharacterEllipsis"
+                                                                               VerticalAlignment="Center" />
+
+                                                                    <Border Grid.Column="2" CornerRadius="3" Padding="4,1" VerticalAlignment="Center"
+                                                                            Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                                                            Visibility="{x:Bind local:MainPage.BoolToVisibility(IsConnected), Mode=OneWay}">
+                                                                        <TextBlock Text="{x:Bind StatusBadgeText, Mode=OneWay}" FontSize="8" FontWeight="Bold" Foreground="White" />
+                                                                    </Border>
+                                                                </Grid>
+                                                            </Button>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+            </Grid>
+
+            <!-- ================= VIEW 2: HARDWARE & DEVICES ================= -->
+            <Grid Visibility="{x:Bind local:MainPage.BoolToVisibility(ViewModel.IsDevicesViewSelected), Mode=OneWay}" ColumnSpacing="20">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Bluetooth Devices Column -->
+                <Border Grid.Column="0" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
+                    <Grid RowSpacing="12">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="Bluetooth Devices" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                            <Border Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
+                                <TextBlock Text="{x:Bind ViewModel.BluetoothDevices.Count, Mode=OneWay}" Foreground="White" FontSize="11" FontWeight="Bold" />
+                            </Border>
+                        </StackPanel>
+
+                        <ListView Grid.Row="1" ItemsSource="{x:Bind ViewModel.BluetoothDevices, Mode=OneWay}" SelectionMode="None">
+                            <ListView.ItemTemplate>
+                                <DataTemplate x:DataType="models:BluetoothDevice">
+                                    <Grid Padding="8,10" ColumnSpacing="12">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="150" />
-                                            <ColumnDefinition Width="70" />
+                                            <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <FontIcon Grid.Column="0" Glyph="&#xE702;" FontSize="20" Foreground="{ThemeResource AccentFillColorDefaultBrush}" VerticalAlignment="Center" />
+
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" FontSize="14" />
+                                            <TextBlock Text="{x:Bind Id}" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextTrimming="CharacterEllipsis" MaxWidth="220" />
+                                        </StackPanel>
+
+                                        <Border Grid.Column="2" CornerRadius="4" Padding="6,2" VerticalAlignment="Center"
+                                                Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                                            <TextBlock Text="{x:Bind ConnectionStatusText, Mode=OneTime}" FontSize="11" FontWeight="Medium" />
+                                        </Border>
+
+                                        <Button Grid.Column="3" Content="Stream Audio" Click="StreamButton_Click" Tag="{x:Bind}" VerticalAlignment="Center" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                    </Grid>
+                </Border>
+
+                <!-- Audio Devices Column -->
+                <Border Grid.Column="1" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
+                    <Grid RowSpacing="12">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="Audio Endpoints (WASAPI)" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                            <Border Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
+                                <TextBlock Text="{x:Bind ViewModel.AudioDevices.Count, Mode=OneWay}" Foreground="White" FontSize="11" FontWeight="Bold" />
+                            </Border>
+                        </StackPanel>
+
+                        <ListView Grid.Row="1" ItemsSource="{x:Bind ViewModel.AudioDevices, Mode=OneWay}" SelectionMode="None">
+                            <ListView.ItemTemplate>
+                                <DataTemplate x:DataType="models:AudioDevice">
+                                    <Grid Padding="8,10" ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
 
-                                        <!-- Stream Icon & State -->
-                                        <FontIcon Grid.Column="0" Glyph="&#xE768;" FontSize="16" Foreground="{ThemeResource AccentFillColorDefaultBrush}" VerticalAlignment="Center" />
+                                        <FontIcon Grid.Column="0" Glyph="&#xE767;" FontSize="20" Foreground="{ThemeResource AccentFillColorDefaultBrush}" VerticalAlignment="Center" />
 
-                                        <!-- Device & Route Info -->
                                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                            <TextBlock Text="{x:Bind DisplayName}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" />
-                                            <TextBlock Text="{x:Bind OutputName}" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" FontSize="14" />
+                                            <TextBlock Text="{x:Bind Flow}" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
                                         </StackPanel>
 
-                                        <!-- Channel L/R Peak VU Meter -->
-                                        <StackPanel Grid.Column="2" Orientation="Vertical" Spacing="2" VerticalAlignment="Center">
-                                            <Grid>
-                                                <TextBlock Text="L" FontSize="8" Foreground="{ThemeResource TextFillColorTertiaryBrush}" HorizontalAlignment="Left" VerticalAlignment="Center" />
-                                                <ProgressBar Minimum="0" Maximum="1" Value="{x:Bind PeakLeft, Mode=OneWay}" Margin="10,0,0,0" Height="4" />
-                                            </Grid>
-                                            <Grid>
-                                                <TextBlock Text="R" FontSize="8" Foreground="{ThemeResource TextFillColorTertiaryBrush}" HorizontalAlignment="Left" VerticalAlignment="Center" />
-                                                <ProgressBar Minimum="0" Maximum="1" Value="{x:Bind PeakRight, Mode=OneWay}" Margin="10,0,0,0" Height="4" />
-                                            </Grid>
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                            <Border CornerRadius="4" Padding="6,2" Background="{ThemeResource AccentFillColorDefaultBrush}" Visibility="{x:Bind local:MainPage.BoolToVisibility(IsDefault), Mode=OneTime}">
+                                                <TextBlock Text="Default" FontSize="10" Foreground="White" FontWeight="Bold" />
+                                            </Border>
+                                            <Border CornerRadius="4" Padding="6,2" Background="{ThemeResource SubtleFillColorSecondaryBrush}" Visibility="{x:Bind local:MainPage.BoolToVisibility(IsBluetoothEndpoint), Mode=OneTime}">
+                                                <TextBlock Text="BT" FontSize="10" FontWeight="SemiBold" />
+                                            </Border>
                                         </StackPanel>
-
-                                        <!-- Independent Channel Volume Slider -->
-                                        <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                            <FontIcon Glyph="&#xE767;" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                            <Slider Minimum="0" Maximum="1" StepFrequency="0.05" Value="{x:Bind RouteGain, Mode=TwoWay}" Width="110" VerticalAlignment="Center" />
-                                            <TextBlock Text="{x:Bind FormattedVolume, Mode=OneWay}" Width="36" FontSize="11" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                        </StackPanel>
-
-                                        <!-- Stereo Pan Slider (-1 to +1) -->
-                                        <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                            <TextBlock Text="Pan" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
-                                            <Slider Minimum="-1" Maximum="1" StepFrequency="0.05" Value="{x:Bind Pan, Mode=TwoWay}" Width="85" VerticalAlignment="Center" />
-                                            <TextBlock Text="{x:Bind FormattedPan, Mode=OneWay}" Width="42" FontSize="11" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                        </StackPanel>
-
-                                        <!-- Solo Button -->
-                                        <Button Grid.Column="5" Click="ChannelSoloButton_Click" Tag="{x:Bind}" VerticalAlignment="Center" Padding="8,4">
-                                            <StackPanel Orientation="Horizontal" Spacing="4">
-                                                <FontIcon Glyph="&#xE7EC;" FontSize="12" />
-                                                <TextBlock Text="{x:Bind SoloButtonText, Mode=OneWay}" FontSize="11" />
-                                            </StackPanel>
-                                        </Button>
-
-                                        <!-- Mute Button -->
-                                        <Button Grid.Column="6" Click="ChannelMuteButton_Click" Tag="{x:Bind}" VerticalAlignment="Center" Padding="8,4">
-                                            <StackPanel Orientation="Horizontal" Spacing="4">
-                                                <FontIcon Glyph="&#xE74F;" FontSize="12" />
-                                                <TextBlock Text="{x:Bind MuteButtonText, Mode=OneWay}" FontSize="11" />
-                                            </StackPanel>
-                                        </Button>
-
-                                        <!-- Spacer in Column 7 -->
-
-                                        <!-- Stop Channel Stream Button -->
-                                        <Button Grid.Column="8" Click="StopChannelButton_Click" Tag="{x:Bind}" Style="{ThemeResource AccentButtonStyle}" VerticalAlignment="Center" Padding="8,4">
-                                            <StackPanel Orientation="Horizontal" Spacing="4">
-                                                <FontIcon Glyph="&#xE71A;" FontSize="12" />
-                                                <TextBlock Text="Stop Stream" FontSize="11" />
-                                            </StackPanel>
-                                        </Button>
                                     </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </StackPanel>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                    </Grid>
+                </Border>
             </Grid>
-        </Border>
-
-        <!-- Main Content: 2 Columns (Bluetooth & Audio) -->
-        <Grid Grid.Row="2" ColumnSpacing="20">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
-
-            <!-- Bluetooth Devices Column -->
-            <Border Grid.Column="0" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
-                <Grid RowSpacing="12">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-
-                    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="Bluetooth Devices" Style="{ThemeResource SubtitleTextBlockStyle}" />
-                        <Border Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
-                            <TextBlock Text="{x:Bind ViewModel.BluetoothDevices.Count, Mode=OneWay}" Foreground="White" FontSize="11" FontWeight="Bold" />
-                        </Border>
-                    </StackPanel>
-
-                    <ListView Grid.Row="1" ItemsSource="{x:Bind ViewModel.BluetoothDevices, Mode=OneWay}" SelectionMode="None">
-                        <ListView.ItemTemplate>
-                            <DataTemplate x:DataType="models:BluetoothDevice">
-                                <Grid Padding="8,10" ColumnSpacing="12">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-
-                                    <FontIcon Grid.Column="0" Glyph="&#xE702;" FontSize="20" Foreground="{ThemeResource AccentFillColorDefaultBrush}" VerticalAlignment="Center" />
-
-                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                        <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" FontSize="14" />
-                                        <TextBlock Text="{x:Bind Id}" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextTrimming="CharacterEllipsis" MaxWidth="220" />
-                                    </StackPanel>
-
-                                    <Border Grid.Column="2" CornerRadius="4" Padding="6,2" VerticalAlignment="Center"
-                                            Background="{ThemeResource SubtleFillColorSecondaryBrush}">
-                                        <TextBlock Text="{x:Bind ConnectionStatusText, Mode=OneTime}" FontSize="11" FontWeight="Medium" />
-                                    </Border>
-
-                                    <Button Grid.Column="3" Content="Stream Audio" Click="StreamButton_Click" Tag="{x:Bind}" VerticalAlignment="Center" />
-                                </Grid>
-                            </DataTemplate>
-                        </ListView.ItemTemplate>
-                    </ListView>
-                </Grid>
-            </Border>
-
-            <!-- Audio Devices Column -->
-            <Border Grid.Column="1" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
-                <Grid RowSpacing="12">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-
-                    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="Audio Endpoints (WASAPI)" Style="{ThemeResource SubtitleTextBlockStyle}" />
-                        <Border Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
-                            <TextBlock Text="{x:Bind ViewModel.AudioDevices.Count, Mode=OneWay}" Foreground="White" FontSize="11" FontWeight="Bold" />
-                        </Border>
-                    </StackPanel>
-
-                    <ListView Grid.Row="1" ItemsSource="{x:Bind ViewModel.AudioDevices, Mode=OneWay}" SelectionMode="None">
-                        <ListView.ItemTemplate>
-                            <DataTemplate x:DataType="models:AudioDevice">
-                                <Grid Padding="8,10" ColumnSpacing="12">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-
-                                    <FontIcon Grid.Column="0" Glyph="&#xE767;" FontSize="20" Foreground="{ThemeResource AccentFillColorDefaultBrush}" VerticalAlignment="Center" />
-
-                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                        <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" FontSize="14" />
-                                        <TextBlock Text="{x:Bind Flow}" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
-                                    </StackPanel>
-
-                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                                        <Border CornerRadius="4" Padding="6,2" Background="{ThemeResource AccentFillColorDefaultBrush}" Visibility="{x:Bind local:MainPage.BoolToVisibility(IsDefault), Mode=OneTime}">
-                                            <TextBlock Text="Default" FontSize="10" Foreground="White" FontWeight="Bold" />
-                                        </Border>
-                                        <Border CornerRadius="4" Padding="6,2" Background="{ThemeResource SubtleFillColorSecondaryBrush}" Visibility="{x:Bind local:MainPage.BoolToVisibility(IsBluetoothEndpoint), Mode=OneTime}">
-                                            <TextBlock Text="BT" FontSize="10" FontWeight="SemiBold" />
-                                        </Border>
-                                    </StackPanel>
-                                </Grid>
-                            </DataTemplate>
-                        </ListView.ItemTemplate>
-                    </ListView>
-                </Grid>
-            </Border>
         </Grid>
 
         <!-- Status Bar Footer -->

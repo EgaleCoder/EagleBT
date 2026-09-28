@@ -83,6 +83,34 @@ public sealed partial class MainPage : Page
         await ViewModel.StopAllStreamsAsync();
     }
 
+    private void MixerViewNavButton_Click(object sender, RoutedEventArgs e)
+    {
+        ViewModel.SetViewIndex(0);
+    }
+
+    private void MatrixViewNavButton_Click(object sender, RoutedEventArgs e)
+    {
+        ViewModel.SetViewIndex(1);
+    }
+
+    private void DevicesViewNavButton_Click(object sender, RoutedEventArgs e)
+    {
+        ViewModel.SetViewIndex(2);
+    }
+
+    private async void MatrixCellButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: MatrixCellViewModel cell })
+        {
+            await ViewModel.ToggleMatrixCrossPointAsync(cell);
+        }
+    }
+
+    private void RefreshMatrixButton_Click(object sender, RoutedEventArgs e)
+    {
+        ViewModel.RefreshMatrix();
+    }
+
     public static Visibility BoolToVisibility(bool value) =>
         value ? Visibility.Visible : Visibility.Collapsed;
 
