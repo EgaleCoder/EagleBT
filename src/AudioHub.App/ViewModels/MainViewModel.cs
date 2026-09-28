@@ -53,6 +53,31 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         set => SetField(ref _isScanning, value);
     }
 
+    private int _selectedViewIndex;
+
+    public int SelectedViewIndex
+    {
+        get => _selectedViewIndex;
+        set
+        {
+            if (SetField(ref _selectedViewIndex, value))
+            {
+                OnPropertyChanged(nameof(IsMixerViewSelected));
+                OnPropertyChanged(nameof(IsMatrixViewSelected));
+                OnPropertyChanged(nameof(IsDevicesViewSelected));
+            }
+        }
+    }
+
+    public bool IsMixerViewSelected => _selectedViewIndex == 0;
+    public bool IsMatrixViewSelected => _selectedViewIndex == 1;
+    public bool IsDevicesViewSelected => _selectedViewIndex == 2;
+
+    public ObservableCollection<AudioDevice> MatrixEndpoints { get; } = new();
+    public ObservableCollection<MatrixRowViewModel> MatrixRows { get; } = new();
+
+    public int TotalActiveCrossPoints => MatrixRows.Sum(r => r.ActiveRoutesCount);
+
     public bool HasActiveChannels => ActiveChannels.Count > 0;
 
     public int ActiveStreamsCount => ActiveChannels.Count;
@@ -269,6 +294,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             // Start Bluetooth Watcher
             _bluetoothDeviceService.StartDiscovery();
             StatusMessage = "Listening for Bluetooth & Audio devices";
+            RefreshMatrix();
         }
         catch (Exception ex)
         {
@@ -303,6 +329,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
                                     ?? RenderEndpoints.FirstOrDefault(d => d.IsDefault)
                                     ?? RenderEndpoints.FirstOrDefault();
             }
+
+            RefreshMatrix();
         }
         catch (Exception ex)
         {
@@ -427,6 +455,160 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         return _bluetoothAudioSinkService.IsDeviceStreaming(deviceId);
     }
 
+    public void SetViewIndex(int index)
+    {
+        SelectedViewIndex = index;
+    }
+
+    public void RefreshMatrix()
+    {
+        _dispatcherQueue.TryEnqueue(() =>
+        {
+            var sortedOutputs = RenderEndpoints
+                .OrderByDescending(d => d.IsBluetoothEndpoint)
+                .ThenByDescending(d => d.IsDefault)
+                .ThenBy(d => d.Name)
+                .ToList();
+
+            MatrixEndpoints.Clear();
+            foreach (var ep in sortedOutputs)
+            {
+                MatrixEndpoints.Add(ep);
+            }
+
+            var sources = new List<(string Id, string Name, SourceType Type)>();
+
+            foreach (var bt in BluetoothDevices)
+            {
+                sources.Add((bt.Id, bt.Name, SourceType.RemoteMedia));
+            }
+
+            sources.Add(("pc-system-audio", "Windows System Audio (PC)", SourceType.SystemAudio));
+
+            MatrixRows.Clear();
+            var activeRoutes = _audioRoutingService.ActiveRoutes;
+
+            foreach (var (srcId, srcName, srcType) in sources)
+            {
+                var row = new MatrixRowViewModel(srcId, srcName, srcType);
+                row.IsStreaming = _bluetoothAudioSinkService.IsDeviceStreaming(srcId);
+
+                foreach (var output in MatrixEndpoints)
+                {
+                    var matchingRoute = activeRoutes.FirstOrDefault(r =>
+                        string.Equals(r.Source.Id, srcId, StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(r.Output.Id, output.Id, StringComparison.OrdinalIgnoreCase));
+
+                    bool isConnected = matchingRoute != null;
+                    var cell = new MatrixCellViewModel(
+                        srcId,
+                        srcName,
+                        srcType,
+                        output.Id,
+                        output.Name,
+                        output.IsBluetoothEndpoint,
+                        output.IsDefault,
+                        isConnected,
+                        matchingRoute?.Id);
+
+                    row.Cells.Add(cell);
+                }
+
+                row.RecalculateActiveRoutes();
+                MatrixRows.Add(row);
+            }
+
+            OnPropertyChanged(nameof(TotalActiveCrossPoints));
+        });
+    }
+
+    public async Task ToggleMatrixCrossPointAsync(MatrixCellViewModel cell)
+    {
+        ArgumentNullException.ThrowIfNull(cell);
+
+        cell.IsConnecting = true;
+        try
+        {
+            if (cell.IsConnected && !string.IsNullOrEmpty(cell.RouteId))
+            {
+                string routeId = cell.RouteId;
+                cell.SetConnected(false, null);
+
+                await _audioRoutingService.DisconnectRouteAsync(routeId);
+                _audioMixerService.RemoveChannel(routeId);
+
+                var remainingForSource = _audioRoutingService.GetRouteBySourceId(cell.SourceId);
+                if (remainingForSource == null && cell.SourceType == SourceType.RemoteMedia)
+                {
+                    await _bluetoothAudioSinkService.StopStreamAsync(cell.SourceId);
+                }
+
+                StatusMessage = $"Disconnected route {cell.SourceName} \u2794 {cell.OutputName}";
+            }
+            else
+            {
+                var targetOutputDevice = RenderEndpoints.FirstOrDefault(d => string.Equals(d.Id, cell.OutputId, StringComparison.OrdinalIgnoreCase));
+                var targetOutput = new AudioOutput
+                {
+                    Id = cell.OutputId,
+                    DisplayName = targetOutputDevice?.Name ?? cell.OutputName,
+                    MasterVolume = 1.0f,
+                    IsMuted = false
+                };
+
+                var audioSource = new AudioSource
+                {
+                    Id = cell.SourceId,
+                    DisplayName = cell.SourceName,
+                    Type = cell.SourceType,
+                    Volume = 1.0f,
+                    IsMuted = false
+                };
+
+                var route = await _audioRoutingService.ConnectRouteAsync(audioSource, targetOutput);
+
+                if (cell.SourceType == SourceType.RemoteMedia)
+                {
+                    var btDevice = BluetoothDevices.FirstOrDefault(d => string.Equals(d.Id, cell.SourceId, StringComparison.OrdinalIgnoreCase));
+                    if (btDevice != null)
+                    {
+                        ActiveStreamDevice = btDevice;
+                    }
+
+                    if (!_bluetoothAudioSinkService.IsDeviceStreaming(cell.SourceId))
+                    {
+                        bool streamStarted = await _bluetoothAudioSinkService.StartStreamAsync(cell.SourceId);
+                        if (!streamStarted)
+                        {
+                            StatusMessage = $"Could not open stream for {cell.SourceName}. Check pairing.";
+                        }
+                    }
+                }
+
+                cell.SetConnected(true, route.Id);
+                StatusMessage = $"Active route: {cell.SourceName} \u2794 {cell.OutputName}";
+            }
+
+            var parentRow = MatrixRows.FirstOrDefault(r => string.Equals(r.SourceId, cell.SourceId, StringComparison.OrdinalIgnoreCase));
+            parentRow?.RecalculateActiveRoutes();
+            if (parentRow != null)
+            {
+                parentRow.IsStreaming = _bluetoothAudioSinkService.IsDeviceStreaming(cell.SourceId);
+            }
+
+            OnPropertyChanged(nameof(TotalActiveCrossPoints));
+            RefreshStreamStatus();
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error toggling route: {ex.Message}";
+        }
+        finally
+        {
+            cell.IsConnecting = false;
+        }
+    }
+
     private void RefreshStreamStatus()
     {
         int count = ActiveChannels.Count;
@@ -518,6 +700,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             OnPropertyChanged(nameof(HasActiveRoute));
             OnPropertyChanged(nameof(IsStreaming));
             RefreshStreamStatus();
+            RefreshMatrix();
         });
     }
 
@@ -546,6 +729,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             OnPropertyChanged(nameof(HasActiveRoute));
             OnPropertyChanged(nameof(IsStreaming));
             RefreshStreamStatus();
+            RefreshMatrix();
         });
     }
 
@@ -557,6 +741,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             if (existing == null)
             {
                 BluetoothDevices.Add(device);
+                RefreshMatrix();
             }
         });
     }
@@ -570,6 +755,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             {
                 int index = BluetoothDevices.IndexOf(existing);
                 BluetoothDevices[index] = device;
+                RefreshMatrix();
             }
         });
     }
@@ -582,6 +768,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             if (existing != null)
             {
                 BluetoothDevices.Remove(existing);
+                RefreshMatrix();
             }
 
             var channel = ActiveChannels.FirstOrDefault(c => string.Equals(c.DeviceId, deviceId, StringComparison.OrdinalIgnoreCase));
@@ -603,6 +790,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
                 if (device.Flow == AudioFlowType.Render)
                 {
                     RenderEndpoints.Add(device);
+                    RefreshMatrix();
                 }
             }
         });
@@ -617,6 +805,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             {
                 AudioDevices.Remove(existing);
                 RenderEndpoints.Remove(existing);
+                RefreshMatrix();
             }
         });
     }
