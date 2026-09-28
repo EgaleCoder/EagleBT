@@ -263,4 +263,46 @@ public sealed class AudioRoutingServiceTests
         Assert.Same(route, foundRoute);
         Assert.Null(notFound);
     }
+
+    [Fact]
+    public async Task UpdateRouteOutputAsync_ValidRoute_UpdatesOutputEndpointAndFiresEvent()
+    {
+        // Arrange
+        var source = new AudioSource { Id = "s1", DisplayName = "Phone", Type = SourceType.RemoteMedia };
+        var initialOutput = new AudioOutput { Id = "speakers", DisplayName = "PC Speakers" };
+        var targetOutput = new AudioOutput { Id = "earbuds", DisplayName = "Mustang GoBoult Torq" };
+
+        var route = await _service.ConnectRouteAsync(source, initialOutput);
+
+        bool eventFired = false;
+        _service.RouteUpdated += (sender, args) =>
+        {
+            if (args.Route.Id == route.Id && args.Route.Output.Id == targetOutput.Id)
+            {
+                eventFired = true;
+            }
+        };
+
+        // Act
+        var updated = await _service.UpdateRouteOutputAsync(route.Id, targetOutput);
+
+        // Assert
+        Assert.NotNull(updated);
+        Assert.Equal("earbuds", updated.Output.Id);
+        Assert.Equal("Mustang GoBoult Torq", updated.Output.DisplayName);
+        Assert.True(eventFired);
+    }
+
+    [Fact]
+    public async Task UpdateRouteOutputAsync_NonExistentRoute_ReturnsNull()
+    {
+        // Arrange
+        var targetOutput = new AudioOutput { Id = "earbuds", DisplayName = "Mustang GoBoult Torq" };
+
+        // Act
+        var result = await _service.UpdateRouteOutputAsync("non-existent-id", targetOutput);
+
+        // Assert
+        Assert.Null(result);
+    }
 }
