@@ -65,12 +65,12 @@ docs/                        # Architecture decisions, Bluetooth findings & spik
 
 ## 🗺️ 10-Phase Roadmap
 
-1. **Phase 1 (Current)**: Foundation + Bluetooth/Audio device discovery + Technical Feasibility Spikes.
-2. **Phase 2**: Single remote device audio stream → Windows PC → Earbuds.
-3. **Phase 3**: Multiple remote devices audio stream → Windows PC → Earbuds.
-4. **Phase 4**: Software audio mixing engine.
-5. **Phase 5**: Full Audio Hub routing UI (WinUI 3).
-6. **Phase 6**: AVRCP media control integration (Play/Pause/Track Skip).
+1. **Phase 1 (Complete)**: Foundation + Bluetooth/Audio device discovery + Technical Feasibility Spikes.
+2. **Phase 2 (Complete)**: Single remote device audio stream → Windows PC → Earbuds.
+3. **Phase 3 (Complete)**: Multiple remote devices audio stream → Windows PC → Earbuds.
+4. **Phase 4 (Complete)**: Software audio mixing engine (DSP, panning, limiter, VU telemetry).
+5. **Phase 5 (Complete)**: Full Audio Hub routing UI & Interactive 2D Cross-Point Matrix (WinUI 3).
+6. **Phase 6 (Next)**: AVRCP media control integration (Play/Pause/Track Skip).
 7. **Phase 7**: HFP / Call routing & microphone management.
 8. **Phase 8**: User presets and connection profiles.
 9. **Phase 9**: System tray daemon and Windows auto-startup.
