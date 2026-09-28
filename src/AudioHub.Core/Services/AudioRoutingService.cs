@@ -102,6 +102,29 @@ public sealed class AudioRoutingService : IAudioRoutingService
         return Task.CompletedTask;
     }
 
+    public Task<AudioRoute?> UpdateRouteOutputAsync(
+        string routeId,
+        AudioOutput newOutput,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(routeId);
+        ArgumentNullException.ThrowIfNull(newOutput);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (_routes.TryGetValue(routeId, out var route) && route.IsActive)
+        {
+            route.Output = newOutput;
+            RouteUpdated?.Invoke(this, new AudioRouteEventArgs
+            {
+                Route = route,
+                Reason = "Output endpoint updated"
+            });
+            return Task.FromResult<AudioRoute?>(route);
+        }
+
+        return Task.FromResult<AudioRoute?>(null);
+    }
+
     public void SetRouteGain(string routeId, float gain)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(routeId);

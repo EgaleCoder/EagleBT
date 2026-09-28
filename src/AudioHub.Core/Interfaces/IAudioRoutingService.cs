@@ -66,6 +66,14 @@ public interface IAudioRoutingService
     Task DisconnectAllRoutesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Dynamically re-routes an existing active route to a new destination output endpoint without breaking stream continuity.
+    /// </summary>
+    Task<AudioRoute?> UpdateRouteOutputAsync(
+        string routeId,
+        AudioOutput newOutput,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Updates the volume gain of the active route (0.0f to 1.0f).
     /// </summary>
     void SetRouteGain(string routeId, float gain);

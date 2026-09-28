@@ -7,7 +7,7 @@ public sealed class AudioRoute
 {
     public required string Id { get; init; }
     public required AudioSource Source { get; init; }
-    public required AudioOutput Output { get; init; }
+    public required AudioOutput Output { get; set; }
     public bool IsActive { get; set; } = true;
     public float RouteGain { get; set; } = 1.0f;
 
