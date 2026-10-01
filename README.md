@@ -70,8 +70,8 @@ docs/                        # Architecture decisions, Bluetooth findings & spik
 3. **Phase 3 (Complete)**: Multiple remote devices audio stream → Windows PC → Earbuds.
 4. **Phase 4 (Complete)**: Software audio mixing engine (DSP, panning, limiter, VU telemetry).
 5. **Phase 5 (Complete)**: Full Audio Hub routing UI & Interactive 2D Cross-Point Matrix (WinUI 3).
-6. **Phase 6 (Next)**: AVRCP media control integration (Play/Pause/Track Skip).
-7. **Phase 7**: HFP / Call routing & microphone management.
+6. **Phase 6 (Complete)**: AVRCP media control integration (Play/Pause/Track Skip, Media Metadata, Volume Sync).
+7. **Phase 7 (Next)**: HFP / Call routing & microphone management.
 8. **Phase 8**: User presets and connection profiles.
 9. **Phase 9**: System tray daemon and Windows auto-startup.
 10. **Phase 10**: Low-latency buffering and performance optimization.
