@@ -14,6 +14,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     private readonly IBluetoothAudioSinkService _bluetoothAudioSinkService;
     private readonly IAudioRoutingService _audioRoutingService;
     private readonly IAudioMixerService _audioMixerService;
+    private readonly IMediaControlService _mediaControlService;
     private readonly DispatcherQueue _dispatcherQueue;
 
     private string _statusMessage = "Ready";
@@ -35,6 +36,11 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     private float _masterPeakLeft;
     private float _masterPeakRight;
     private bool _isMasterClipping;
+
+    // AVRCP Media Control properties
+    private MediaMetadata _mediaMetadata = new();
+    private MediaPlaybackInfo _playbackInfo = new();
+    private bool _isMediaControlling;
 
     public ObservableCollection<BluetoothDevice> BluetoothDevices { get; } = new();
     public ObservableCollection<AudioDevice> AudioDevices { get; } = new();
@@ -231,6 +237,70 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
 
     #endregion
 
+    #region AVRCP Media Control Properties
+
+    public MediaMetadata MediaMetadata
+    {
+        get => _mediaMetadata;
+        private set
+        {
+            if (SetField(ref _mediaMetadata, value))
+            {
+                OnPropertyChanged(nameof(MediaTitle));
+                OnPropertyChanged(nameof(MediaArtist));
+                OnPropertyChanged(nameof(MediaAlbum));
+                OnPropertyChanged(nameof(MediaDisplayText));
+                OnPropertyChanged(nameof(HasMediaTrack));
+            }
+        }
+    }
+
+    public MediaPlaybackInfo PlaybackInfo
+    {
+        get => _playbackInfo;
+        private set
+        {
+            if (SetField(ref _playbackInfo, value))
+            {
+                OnPropertyChanged(nameof(MediaStatus));
+                OnPropertyChanged(nameof(IsMediaPlaying));
+                OnPropertyChanged(nameof(PlayPauseGlyph));
+                OnPropertyChanged(nameof(PlayPauseButtonText));
+                OnPropertyChanged(nameof(MediaStatusText));
+                OnPropertyChanged(nameof(CanPlay));
+                OnPropertyChanged(nameof(CanPause));
+                OnPropertyChanged(nameof(CanSkipNext));
+                OnPropertyChanged(nameof(CanSkipPrevious));
+            }
+        }
+    }
+
+    public string MediaTitle => string.IsNullOrWhiteSpace(_mediaMetadata.Title) ? "No Active Media" : _mediaMetadata.Title;
+    public string MediaArtist => string.IsNullOrWhiteSpace(_mediaMetadata.Artist) ? "Ready to stream & control" : _mediaMetadata.Artist;
+    public string MediaAlbum => _mediaMetadata.AlbumTitle;
+    public string MediaDisplayText => _mediaMetadata.DisplayText;
+    public bool HasMediaTrack => _mediaMetadata.HasMetadata;
+
+    public MediaPlaybackStatus MediaStatus => _playbackInfo.Status;
+    public bool IsMediaPlaying => _playbackInfo.IsPlaying;
+    public string PlayPauseGlyph => _playbackInfo.IsPlaying ? "\uE769" : "\uE768";
+    public string PlayPauseButtonText => _playbackInfo.IsPlaying ? "Pause" : "Play";
+    public string MediaStatusText => _playbackInfo.Status switch
+    {
+        MediaPlaybackStatus.Playing => "Playing",
+        MediaPlaybackStatus.Paused => "Paused",
+        MediaPlaybackStatus.Stopped => "Stopped",
+        MediaPlaybackStatus.Changing => "Changing Track",
+        _ => "Idle"
+    };
+
+    public bool CanPlay => _playbackInfo.CanPlay;
+    public bool CanPause => _playbackInfo.CanPause;
+    public bool CanSkipNext => _playbackInfo.CanSkipNext;
+    public bool CanSkipPrevious => _playbackInfo.CanSkipPrevious;
+
+    #endregion
+
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public MainViewModel(
@@ -238,13 +308,15 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         IAudioDeviceService audioDeviceService,
         IBluetoothAudioSinkService bluetoothAudioSinkService,
         IAudioRoutingService audioRoutingService,
-        IAudioMixerService audioMixerService)
+        IAudioMixerService audioMixerService,
+        IMediaControlService mediaControlService)
     {
         _bluetoothDeviceService = bluetoothDeviceService ?? throw new ArgumentNullException(nameof(bluetoothDeviceService));
         _audioDeviceService = audioDeviceService ?? throw new ArgumentNullException(nameof(audioDeviceService));
         _bluetoothAudioSinkService = bluetoothAudioSinkService ?? throw new ArgumentNullException(nameof(bluetoothAudioSinkService));
         _audioRoutingService = audioRoutingService ?? throw new ArgumentNullException(nameof(audioRoutingService));
         _audioMixerService = audioMixerService ?? throw new ArgumentNullException(nameof(audioMixerService));
+        _mediaControlService = mediaControlService ?? throw new ArgumentNullException(nameof(mediaControlService));
         _dispatcherQueue = DispatcherQueue.GetForCurrentThread() ?? throw new InvalidOperationException("DispatcherQueue not available.");
 
         // Subscribe to Bluetooth device service events
@@ -263,6 +335,9 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         _audioRoutingService.RouteUpdated += OnRouteUpdated;
         _audioRoutingService.RouteRemoved += OnRouteRemoved;
         _audioMixerService.LevelsUpdated += OnMixerLevelsUpdated;
+
+        // Subscribe to AVRCP Media Control events
+        _mediaControlService.PlaybackStateChanged += OnMediaPlaybackChanged;
     }
 
     public async Task InitializeAsync()
@@ -293,6 +368,26 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
 
             // Start Bluetooth Watcher
             _bluetoothDeviceService.StartDiscovery();
+
+            // Load initial media control state
+            try
+            {
+                var initialMeta = await _mediaControlService.GetCurrentMediaMetadataAsync();
+                if (initialMeta != null)
+                {
+                    MediaMetadata = initialMeta;
+                }
+                var initialInfo = await _mediaControlService.GetCurrentPlaybackInfoAsync();
+                if (initialInfo != null)
+                {
+                    PlaybackInfo = initialInfo;
+                }
+            }
+            catch
+            {
+                // Fallback gracefully if media session unavailable at startup
+            }
+
             StatusMessage = "Listening for Bluetooth & Audio devices";
             RefreshMatrix();
         }
@@ -449,6 +544,107 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     {
         IsLimiterEnabled = !IsLimiterEnabled;
     }
+
+    #region AVRCP Transport Actions
+
+    public async Task TogglePlayPauseAsync()
+    {
+        if (_isMediaControlling) return;
+        _isMediaControlling = true;
+        try
+        {
+            await _mediaControlService.TogglePlayPauseAsync();
+            StatusMessage = "AVRCP: Toggled Play/Pause";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"AVRCP Error: {ex.Message}";
+        }
+        finally
+        {
+            _isMediaControlling = false;
+        }
+    }
+
+    public async Task SkipNextAsync()
+    {
+        if (_isMediaControlling) return;
+        _isMediaControlling = true;
+        try
+        {
+            await _mediaControlService.SkipNextAsync();
+            StatusMessage = "AVRCP: Next Track";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"AVRCP Error: {ex.Message}";
+        }
+        finally
+        {
+            _isMediaControlling = false;
+        }
+    }
+
+    public async Task SkipPreviousAsync()
+    {
+        if (_isMediaControlling) return;
+        _isMediaControlling = true;
+        try
+        {
+            await _mediaControlService.SkipPreviousAsync();
+            StatusMessage = "AVRCP: Previous Track";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"AVRCP Error: {ex.Message}";
+        }
+        finally
+        {
+            _isMediaControlling = false;
+        }
+    }
+
+    public async Task StopMediaAsync()
+    {
+        if (_isMediaControlling) return;
+        _isMediaControlling = true;
+        try
+        {
+            await _mediaControlService.StopAsync();
+            StatusMessage = "AVRCP: Stopped";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"AVRCP Error: {ex.Message}";
+        }
+        finally
+        {
+            _isMediaControlling = false;
+        }
+    }
+
+    public async Task VolumeUpAsync()
+    {
+        await _mediaControlService.SendHardwareMediaKeyAsync(MediaHardwareKey.VolumeUp);
+        StatusMessage = "AVRCP: Master Volume Up";
+    }
+
+    public async Task VolumeDownAsync()
+    {
+        await _mediaControlService.SendHardwareMediaKeyAsync(MediaHardwareKey.VolumeDown);
+        StatusMessage = "AVRCP: Master Volume Down";
+    }
+
+    private void OnMediaPlaybackChanged(object? sender, MediaPlaybackStateChangedEventArgs e)
+    {
+        _dispatcherQueue.TryEnqueue(() =>
+        {
+            MediaMetadata = e.Metadata;
+            PlaybackInfo = e.PlaybackInfo;
+        });
+    }
+
+    #endregion
 
     public bool IsDeviceStreaming(string deviceId)
     {
@@ -871,5 +1067,6 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         _audioRoutingService.RouteUpdated -= OnRouteUpdated;
         _audioRoutingService.RouteRemoved -= OnRouteRemoved;
         _audioMixerService.LevelsUpdated -= OnMixerLevelsUpdated;
+        _mediaControlService.PlaybackStateChanged -= OnMediaPlaybackChanged;
     }
 }

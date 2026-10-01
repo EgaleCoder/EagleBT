@@ -111,6 +111,36 @@ public sealed partial class MainPage : Page
         ViewModel.RefreshMatrix();
     }
 
+    private async void PlayPauseButton_Click(object sender, RoutedEventArgs e)
+    {
+        await ViewModel.TogglePlayPauseAsync();
+    }
+
+    private async void SkipPreviousButton_Click(object sender, RoutedEventArgs e)
+    {
+        await ViewModel.SkipPreviousAsync();
+    }
+
+    private async void SkipNextButton_Click(object sender, RoutedEventArgs e)
+    {
+        await ViewModel.SkipNextAsync();
+    }
+
+    private async void StopMediaButton_Click(object sender, RoutedEventArgs e)
+    {
+        await ViewModel.StopMediaAsync();
+    }
+
+    private async void VolumeUpButton_Click(object sender, RoutedEventArgs e)
+    {
+        await ViewModel.VolumeUpAsync();
+    }
+
+    private async void VolumeDownButton_Click(object sender, RoutedEventArgs e)
+    {
+        await ViewModel.VolumeDownAsync();
+    }
+
     public static Visibility BoolToVisibility(bool value) =>
         value ? Visibility.Visible : Visibility.Collapsed;
 
